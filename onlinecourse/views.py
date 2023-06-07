@@ -7,18 +7,19 @@ from django.urls import reverse
 from django.views import generic
 from django.contrib.auth import login, logout, authenticate
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 def registration_request(request):
     context = {}
-    if request.method == 'GET':
-        return render(request, 'onlinecourse/user_registration_bootstrap.html', context)
-    elif request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['psw']
-        first_name = request.POST['firstname']
-        last_name = request.POST['lastname']
+    if request.method == "GET":
+        return render(request, "onlinecourse/user_registration_bootstrap.html", context)
+    elif request.method == "POST":
+        username = request.POST["username"]
+        password = request.POST["psw"]
+        first_name = request.POST["firstname"]
+        last_name = request.POST["lastname"]
         user_exist = False
         try:
             User.objects.get(username=username)
@@ -26,34 +27,40 @@ def registration_request(request):
         except:
             logger.error("New user")
         if not user_exist:
-            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name,
-                                            password=password)
+            user = User.objects.create_user(
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                password=password,
+            )
             login(request, user)
             return redirect("onlinecourse:index")
         else:
-            context['message'] = "User already exists."
-            return render(request, 'onlinecourse/user_registration_bootstrap.html', context)
+            context["message"] = "User already exists."
+            return render(
+                request, "onlinecourse/user_registration_bootstrap.html", context
+            )
 
 
 def login_request(request):
     context = {}
     if request.method == "POST":
-        username = request.POST['username']
-        password = request.POST['psw']
+        username = request.POST["username"]
+        password = request.POST["psw"]
         user = authenticate(username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('onlinecourse:index')
+            return redirect("onlinecourse:index")
         else:
-            context['message'] = "Invalid username or password."
-            return render(request, 'onlinecourse/user_login_bootstrap.html', context)
+            context["message"] = "Invalid username or password."
+            return render(request, "onlinecourse/user_login_bootstrap.html", context)
     else:
-        return render(request, 'onlinecourse/user_login_bootstrap.html', context)
+        return render(request, "onlinecourse/user_login_bootstrap.html", context)
 
 
 def logout_request(request):
     logout(request)
-    return redirect('onlinecourse:index')
+    return redirect("onlinecourse:index")
 
 
 def check_if_enrolled(user, course):
@@ -66,12 +73,12 @@ def check_if_enrolled(user, course):
 
 
 class CourseListView(generic.ListView):
-    template_name = 'onlinecourse/course_list_bootstrap.html'
-    context_object_name = 'course_list'
+    template_name = "onlinecourse/course_list_bootstrap.html"
+    context_object_name = "course_list"
 
     def get_queryset(self):
         user = self.request.user
-        courses = Course.objects.order_by('-total_enrollment')[:10]
+        courses = Course.objects.order_by("-total_enrollment")[:10]
         for course in courses:
             if user.is_authenticated:
                 course.is_enrolled = check_if_enrolled(user, course)
@@ -80,7 +87,7 @@ class CourseListView(generic.ListView):
 
 class CourseDetailView(generic.DetailView):
     model = Course
-    template_name = 'onlinecourse/course_detail_bootstrap.html'
+    template_name = "onlinecourse/course_detail_bootstrap.html"
 
 
 def enroll(request, course_id):
@@ -90,11 +97,13 @@ def enroll(request, course_id):
     is_enrolled = check_if_enrolled(user, course)
     if not is_enrolled and user.is_authenticated:
         # Create an enrollment
-        Enrollment.objects.create(user=user, course=course, mode='honor')
+        Enrollment.objects.create(user=user, course=course, mode="honor")
         course.total_enrollment += 1
         course.save()
 
-    return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
+    return HttpResponseRedirect(
+        reverse(viewname="onlinecourse:course_details", args=(course.id,))
+    )
 
 
 def submit(request, course_id):
@@ -106,17 +115,21 @@ def submit(request, course_id):
         choice = Choice.objects.get(id=answer)
         submission.choices.add(choice)
     submission.save()
-    return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=(course_id,submission.id ))) 
-    
+    return HttpResponseRedirect(
+        reverse(
+            viewname="onlinecourse:show_exam_result", args=(course_id, submission.id)
+        )
+    )
+
 
 def extract_answers(request):
-   submitted_anwsers = []
-   for key in request.POST:
-       if key.startswith('choice'):
-           value = request.POST[key]
-           choice_id = int(value)
-           submitted_anwsers.append(choice_id)
-   return submitted_anwsers
+    submitted_anwsers = []
+    for key in request.POST:
+        if key.startswith("choice"):
+            value = request.POST[key]
+            choice_id = int(value)
+            submitted_anwsers.append(choice_id)
+    return submitted_anwsers
 
 
 def show_exam_result(request, course_id, submission_id):
@@ -132,6 +145,6 @@ def show_exam_result(request, course_id, submission_id):
         max_grade += question.grade
     context["passing_grade"] = int(max_grade * 0.8 * 10)
     context["selected"] = selected_choices
-    context["grade"] = (grade * 100 // max_grade)
+    context["grade"] = grade * 100 // max_grade
     context["course"] = course
     return render(request, "onlinecourse/exam_result_bootstrap.html", context)
